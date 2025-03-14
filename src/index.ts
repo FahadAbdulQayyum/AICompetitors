@@ -1,44 +1,127 @@
 import OpenAI from "openai";
 
-// Clients
+type ChatCompletionRole = "system" | "user" | "assistant";
+interface ChatCompletionMessageParam {
+    role: ChatCompletionRole;
+    content: string | null;
+}
+
+type ModelName = "deepseek-reasoner" | "gpt-4o";
+
 function createDeepSeekClient(systemPrompt: string) {
     const deepSeekChatClient = new OpenAI({
         baseURL: "https://api.deepseek.com",
         apiKey: process.env.DEEPSEEK_API,
     });
-    const messages = [
-        { role: "system", content: systemPrompt }
-    ];
+    const messages: ChatCompletionMessageParam[] = [{ role: "system", content: systemPrompt }];
 
-    return async function (message: string, model = "deepseek-reasoner") {
-        messages.push({role: "user", content: message});
-        const response = deepSeekChatClient.chat.completions.create({
-            model,
-            messages,
-        });
-        const assistantResponse = response.choices[0].message.content;
-        messages.push({ role: "assistance", content: assistantResponse });
-        return assistantResponse;
-    }
+    return async function (message: string, model: ModelName = "deepseek-reasoner") {
+        // Add user message to the conversation
+        messages.push({ role: "user", content: message });
+
+        try {
+            // Call the DeepSeek API and await the response
+            const response = await deepSeekChatClient.chat.completions.create({
+                model,
+                messages,
+            });
+
+            // Extract the assistant's response
+            const assistantResponse: string | null = response.choices[0].message.content;
+
+            // Add assistant's response to the conversation
+            messages.push({ role: "assistant", content: assistantResponse });
+
+            return assistantResponse;
+        } catch (error) {
+            console.error("DeepSeek API Error:", error);
+            throw error;
+        }
+    };
 }
 
 function createOpenAiClient(systemPrompt: string) {
-    const OpenAiChatClient = new OpenAI({
+    const openAiChatClient = new OpenAI({
         apiKey: process.env.OPENAI_API,
     });
-    const messages = [];
+    const messages: ChatCompletionMessageParam[] = [{ role: "system", content: systemPrompt }];
 
-    return async function (message: string, model = "gpt-4o") {
-        messages.push({role: "user", content: message});
-        const response = OpenAiChatClient.chat.completions.create({
-            model,
-            messages,
-        });
-        const assistantResponse = response.choices[0].message.content
-        messages.push({ role: "assistance", content: assistantResponse })
-        return assistantResponse;
-    }
+    return async function (message: string, model: ModelName = "gpt-4o") {
+        // Add user message to the conversation
+        messages.push({ role: "user", content: message });
+
+        try {
+            // Call the OpenAI API and await the response
+            const response = await openAiChatClient.chat.completions.create({
+                model,
+                messages,
+            });
+
+            // Extract the assistant's response
+            const assistantResponse: string | null = response.choices[0].message.content;
+
+            // Add assistant's response to the conversation
+            messages.push({ role: "assistant", content: assistantResponse });
+
+            return assistantResponse;
+        } catch (error) {
+            console.error("OpenAI API Error:", error);
+            throw error;
+        }
+    };
 }
+
+
+
+// import OpenAI from "openai";
+
+// interface Message {
+//     role: "system" | "user" | "assistant";
+//     content: string;
+// };
+
+// type ModelName = "deepseek-reasoner" | "gpt-4o";
+
+
+// // Clients
+// function createDeepSeekClient(systemPrompt: string) {
+//     const deepSeekChatClient = new OpenAI({
+//         baseURL: "https://api.deepseek.com",
+//         apiKey: process.env.DEEPSEEK_API,
+//     });
+//     const messages: Message[] = [
+//         { role: "system", content: systemPrompt }
+//     ];
+
+//     return async function (message: string, model: ModelName = "deepseek-reasoner") {
+//         messages.push({role: "user", content: message});
+//         const response = deepSeekChatClient.chat.completions.create({
+//             model,
+//             messages,
+//         });
+//         const assistantResponse = response.choices[0].message.content;
+//         messages.push({ role: "assistant", content: assistantResponse });
+//         return assistantResponse;
+//     }
+// }
+
+// function createOpenAiClient(systemPrompt: string) {
+//     const OpenAiChatClient = new OpenAI({
+//         apiKey: process.env.OPENAI_API,
+//     });
+//     const messages: Message[] = [];
+
+//     return async function (message: string, model: ModelName = "gpt-4o") {
+//         messages.push({role: "user", content: message});
+//         const response = OpenAiChatClient.chat.completions.create({
+//             model,
+//             messages,
+//         });
+//         const assistantResponse = await response.choices[0].message.content
+//         messages.push({ role: "assistant", content: assistantResponse })
+//         return assistantResponse;
+//     }
+// }
 
 const MAX_TURN: number = 12;
 const DEBATE_TOPIC: string = "Which number is greater 9.11 and 9.8?"
@@ -53,7 +136,7 @@ const gpt = createOpenAiClient(`
         The debate is ${DEBATE_TOPIC}.
     `);
 
-const deepseek = createDeepSeekClient(`
+const deepSeek = createDeepSeekClient(`
         You are a calm, peaceful, intelligent AI Assistant competing with OpenAI 
         LLM Model. You have to prove yourself the best and maintain calmness, peacefulness
         and always be polite and think before you answer.
@@ -61,3 +144,23 @@ const deepseek = createDeepSeekClient(`
 
         The debate is ${DEBATE_TOPIC}.
     `);
+
+    let currentTurn: number = 0;
+
+    let lastMessage: string | null = "Hello";
+
+    let flag: 'A' | 'B' = 'A';
+
+    while (currentTurn < MAX_TURN) {
+        if (flag === 'A') {
+            lastMessage = await gpt(`DeepSeek says: ${lastMessage}`);
+            console.log("OpenAI: ", lastMessage);
+            flag = 'B';
+        } else {
+            lastMessage = await deepSeek(`OpenAI says: ${lastMessage}`);
+            console.log("DeepSeek: ", lastMessage);
+            flag = 'A';
+        }
+
+        currentTurn++;
+    }
