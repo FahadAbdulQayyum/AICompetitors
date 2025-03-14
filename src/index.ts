@@ -1,17 +1,7 @@
-import express from "express";
+import OpenAI from "openai";
 
-const app = express();
-
-const PORT = process.env.PORT ?? 8000;
-
-app.get('/', (req, res) => {
-    res.json({message: "Welcome to landing page."})
-})
-
-app.get('/health', (req, res) => {
-    res.json({message: "Everything is going good."})
-})
-
-app.listen(PORT, ()=> {
-    console.log(`Server is running on ${PORT}.`)
+// Clients
+const deepSeekChatClient = new OpenAI({
+    baseURL: "https://api.deepseek.com",
+    apiKey: "<DeepSeek API Key>",
 })
